@@ -115,7 +115,8 @@ function DevConsole() {
           const amount = parseInt(args[0]);
           addOutput(`Calling API: POST /api/players/${userId}/kp {"amount": ${amount}}`, 'normal');
           
-          const response = await fetch(`http://localhost:8080/api/players/${userId}/kp`, {
+          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+          const response = await fetch(`${API_URL}/api/players/${userId}/kp`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ amount })
@@ -144,7 +145,8 @@ function DevConsole() {
         try {
           addOutput(`Calling API: POST /api/players/${userId}/restore`, 'normal');
           
-          const response = await fetch(`http://localhost:8080/api/players/${userId}/restore`, {
+          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+          const response = await fetch(`${API_URL}/api/players/${userId}/restore`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
           });
@@ -177,7 +179,8 @@ function DevConsole() {
           break;
         }
         try {
-          const response = await fetch(`http://localhost:8080/api/players/${userId}`);
+          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+          const response = await fetch(`${API_URL}/api/players/${userId}`);
           if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
           }

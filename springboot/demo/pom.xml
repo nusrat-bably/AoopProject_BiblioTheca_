@@ -56,10 +56,9 @@
             <optional>true</optional>
         </dependency>
         
-        <!-- Added MySQL Connector to replace H2 -->
         <dependency>
-            <groupId>com.mysql</groupId>
-            <artifactId>mysql-connector-j</artifactId>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
         

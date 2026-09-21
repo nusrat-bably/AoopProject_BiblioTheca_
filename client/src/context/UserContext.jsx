@@ -46,7 +46,14 @@ export const UserProvider = ({ children }) => {
       const savedData = localStorage.getItem(STORAGE_KEY);
       
       // ✅ RETURNING USER: Load existing progress
-      if (savedData && savedData !== 'undefined' && savedData !== 'null') {
+      const hasAuthenticatedIdentity = Boolean(
+        localStorage.getItem('userId') ||
+        sessionStorage.getItem('userId') ||
+        localStorage.getItem('userToken') ||
+        sessionStorage.getItem('userToken')
+      );
+
+      if (hasAuthenticatedIdentity && savedData && savedData !== 'undefined' && savedData !== 'null') {
         const parsed = JSON.parse(savedData);
         
         // 🛡️ STRICT DATA VALIDATION: Ensure ALL required fields exist and are valid
@@ -137,13 +144,14 @@ export const UserProvider = ({ children }) => {
       return false;
     }
 
-    // 👤 Fetch the active user's ID to sync with MySQL
+    // Fetch the active user's ID to sync with the Spring/PostgreSQL backend
     const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
 
     // 🔥 SEND TO BACKEND FIRST (If user is logged in and doesn't already have it locally)
     if (userId && !user.unlockedBooks.includes(normalizedId)) {
       try {
-        await fetch(`http://localhost:8080/api/players/${userId}/unlock`, {
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+        await fetch(`${API_URL}/api/players/${userId}/unlock-book`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ bookId: normalizedId })

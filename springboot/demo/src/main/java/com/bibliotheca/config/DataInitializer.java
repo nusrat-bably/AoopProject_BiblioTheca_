@@ -14,7 +14,7 @@ public class DataInitializer {
     @Bean
     CommandLineRunner initDatabase(BookRepository repository) {
         return args -> {
-            // Only seed database if it's empty (prevents duplicates on restart)
+            // Seed new databases and repair older rows so every book starts corrupted.
             if (repository.count() == 0) {
                 List<Book> books = Arrays.asList(
                     // --- ALL BOOKS ARE CORRUPTED BUT WITH CLEAN DESCRIPTIONS ---
@@ -50,7 +50,10 @@ public class DataInitializer {
                 repository.saveAll(books);
                 System.out.println("✅ Database initialized with 9 CORRUPTED books! All require purging.");
             } else {
-                System.out.println("ℹ️ Database already contains data. Skipping initialization.");
+                List<Book> existingBooks = repository.findAll();
+                existingBooks.forEach(book -> book.setCorrupted(true));
+                repository.saveAll(existingBooks);
+                System.out.println("✅ Existing books normalized: all books are CORRUPTED until user purification.");
             }
         };
     }

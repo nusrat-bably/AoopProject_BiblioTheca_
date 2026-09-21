@@ -60,7 +60,8 @@ function AppContent() {
           category: b.category,
           isbn: b.isbn,
           description: b.description,
-          isCorrupted: b.corrupted ?? b.isCorrupted ?? false,
+          // Corruption is the default state; only the user's unlock record restores access.
+          isCorrupted: true,
         }));
 
         if (normalized.length > 0) {
@@ -185,12 +186,12 @@ function AppContent() {
     if (targetBookId && !unlockedBooks.includes(targetBookId)) {
       setUnlockedBooks(prev => [...prev, targetBookId]);
 
-      // If user is logged in, save this permanently to MySQL
+      // If user is logged in, save this permanently to the backend database
       if (user.id) {
         try {
           // 🔥 FIXED: Dynamic URL for saving progress
           const API_URL = import.meta.env.VITE_API_URL || 'https://aoopprojectbibliotheca-production.up.railway.app';
-          const response = await fetch(`${API_URL}/api/players/${user.id}/unlock`, {
+          const response = await fetch(`${API_URL}/api/players/${user.id}/unlock-book`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ bookId: targetBookId })
@@ -199,7 +200,7 @@ function AppContent() {
           if (!response.ok) {
             console.error('❌ Failed to save purified book to database!');
           } else {
-            console.log('✅ Book purification saved to MySQL permanently!');
+            console.log('✅ Book purification saved to PostgreSQL permanently!');
           }
         } catch (error) {
           console.error('❌ Backend connection error:', error);

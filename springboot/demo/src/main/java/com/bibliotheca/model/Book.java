@@ -38,4 +38,6 @@ public class Book {
     public String getIsbn() { return isbn; }
     public String getDescription() { return description; }
     public boolean isCorrupted() { return isCorrupted; }
+
+    public void setCorrupted(boolean corrupted) { this.isCorrupted = corrupted; }
 }

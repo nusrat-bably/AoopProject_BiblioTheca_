@@ -14,6 +14,7 @@ import { useState, useEffect, useCallback } from 'react';
  * @returns {Object} - { isReady, timeLeft, collectReward, isLoading, error, rewardAmount, nextClaimTime }
  */
 const useDailyReward = (userId) => {
+  const API_BASE = `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/players`;
   const [isReady, setIsReady] = useState(false);
   const [timeLeft, setTimeLeft] = useState('--:--:--');
   const [remainingSeconds, setRemainingSeconds] = useState(0);
@@ -33,7 +34,7 @@ const useDailyReward = (userId) => {
     }
 
     try {
-      const response = await fetch(`http://localhost:8080/api/players/${userId}/daily-reward/status`);
+      const response = await fetch(`${API_BASE}/${userId}/daily-reward/status`);
       
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: Failed to fetch daily reward status`);
@@ -71,7 +72,7 @@ const useDailyReward = (userId) => {
     setError(null);
 
     try {
-      const response = await fetch(`http://localhost:8080/api/players/${userId}/daily-reward/claim`, {
+      const response = await fetch(`${API_BASE}/${userId}/daily-reward/claim`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -30,7 +30,7 @@ const useGameEconomy = (userId, initialKP = 100) => {
   const countdownSoundPlayed = useRef(false); // 🎵 NEW: Track if countdown sound played
   const hasInitialized = useRef(false);
 
-  const API_BASE = 'http://localhost:8080/api/players';
+  const API_BASE = `${import.meta.env.VITE_API_URL || 'http://localhost:8080'}/api/players`;
   const LOCKOUT_DURATION = 10; // 10 seconds
 
   /**

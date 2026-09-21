@@ -332,7 +332,7 @@ public class PlayerController {
                 playerRepository.save(player);
             }
             
-            return ResponseEntity.ok(Collections.singletonMap("message", "Book successfully purified and permanently saved to MySQL!"));
+            return ResponseEntity.ok(Collections.singletonMap("message", "Book successfully purified and permanently saved to PostgreSQL!"));
             
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Collections.singletonMap("error", e.getMessage()));
