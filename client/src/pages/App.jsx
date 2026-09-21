@@ -179,33 +179,12 @@ function AppContent() {
     setIsPlaying(true);
   };
 
-  // 🔥 PERMANENT BACKEND SAVE LOGIC ADDED HERE
+  // The game result is already persisted transactionally by DungeonPlatform.
   const handleDungeonWin = async (bookId) => {
     const targetBookId = bookId || currentDungeonBook?.id;
     
     if (targetBookId && !unlockedBooks.includes(targetBookId)) {
       setUnlockedBooks(prev => [...prev, targetBookId]);
-
-      // If user is logged in, save this permanently to the backend database
-      if (user.id) {
-        try {
-          // 🔥 FIXED: Dynamic URL for saving progress
-          const API_URL = import.meta.env.VITE_API_URL || 'https://aoopprojectbibliotheca-production.up.railway.app';
-          const response = await fetch(`${API_URL}/api/players/${user.id}/unlock-book`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ bookId: targetBookId })
-          });
-
-          if (!response.ok) {
-            console.error('❌ Failed to save purified book to database!');
-          } else {
-            console.log('✅ Book purification saved to PostgreSQL permanently!');
-          }
-        } catch (error) {
-          console.error('❌ Backend connection error:', error);
-        }
-      }
     }
     
     setIsPlaying(false);
@@ -223,18 +202,25 @@ function AppContent() {
       if (storedUser && storedUserId) {
         try {
           const userData = JSON.parse(storedUser);
+          const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+          const response = await fetch(`${API_URL}/api/players/${storedUserId}`);
+          if (!response.ok) throw new Error(`Player refresh failed: HTTP ${response.status}`);
+          const serverUser = await response.json();
+
           setIsLoggedIn(true);
           setUser({ 
-            name: userData.username, 
+            name: serverUser.username || userData.username,
             id: parseInt(storedUserId)
           });
-          
-          if (userData.unlockedBooks && Array.isArray(userData.unlockedBooks)) {
-            setUnlockedBooks(userData.unlockedBooks);
-          }
+          setUnlockedBooks(serverUser.unlockedBooks || []);
         } catch (error) {
           localStorage.removeItem('userToken');
+          localStorage.removeItem('userId');
           sessionStorage.removeItem('userToken');
+          sessionStorage.removeItem('userId');
+          setIsLoggedIn(false);
+          setUser({ name: '', id: null });
+          setUnlockedBooks([]);
         }
       } else {
         setIsLoggedIn(false);

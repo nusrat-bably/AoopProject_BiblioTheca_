@@ -103,34 +103,56 @@ export const UserProvider = ({ children }) => {
     return JSON.parse(JSON.stringify(DEFAULT_USER));
   });
 
-  // 💾 AUTO-SAVE: Persist to localStorage on EVERY state change
-  useEffect(() => {
+  const refreshUser = async () => {
+    const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+    if (!userId) return null;
+
     try {
-      const serialized = JSON.stringify(user);
-      localStorage.setItem(STORAGE_KEY, serialized);
-      console.log('💾 State auto-saved to localStorage:', user);
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+      const response = await fetch(`${API_URL}/api/players/${userId}`);
+      if (!response.ok) throw new Error(`Player refresh failed: HTTP ${response.status}`);
+
+      const data = await response.json();
+      const serverUser = {
+        name: data.username,
+        kp: data.knowledgePoints,
+        unlockedBooks: data.unlockedBooks || [],
+        completedGames: data.completedGames || [],
+        systemStatus: data.systemStatus || null
+      };
+      setUser(serverUser);
+      return serverUser;
     } catch (error) {
-      console.error('❌ Failed to save to localStorage:', error);
-      
-      // 🚨 QUOTA EXCEEDED: Notify user (optional)
-      if (error.name === 'QuotaExceededError') {
-        console.warn('⚠️ localStorage quota exceeded - data may not persist');
-      }
+      console.error('❌ Failed to refresh player state:', error);
+      return null;
     }
-  }, [user]); // Triggers on ANY user state change
+  };
+
+  useEffect(() => {
+    refreshUser();
+  }, []);
 
   // 🎮 UPDATE KP (XP SYSTEM)
-  const updateKP = (amount) => {
-    setUser(prev => {
-      const newKP = Math.max(0, prev.kp + amount); // Floor at 0 (no negative KP)
-      
-      console.log(`💰 KP ${amount >= 0 ? 'GAINED' : 'LOST'}: ${prev.kp} ${amount >= 0 ? '+' : ''}${amount} = ${newKP}`);
-      
-      return {
-        ...prev,
-        kp: newKP
-      };
-    });
+  const updateKP = async (amount) => {
+    const userId = localStorage.getItem('userId') || sessionStorage.getItem('userId');
+    if (!userId) return null;
+
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+      const response = await fetch(`${API_URL}/api/players/${userId}/kp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount })
+      });
+      if (!response.ok) throw new Error(`KP update failed: HTTP ${response.status}`);
+
+      const data = await response.json();
+      setUser(prev => ({ ...prev, kp: data.knowledgePoints }));
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to persist KP:', error);
+      return null;
+    }
   };
 
   // 📚 UNLOCK BOOK (Add to collection permanently via Backend Sync)
@@ -151,14 +173,19 @@ export const UserProvider = ({ children }) => {
     if (userId && !user.unlockedBooks.includes(normalizedId)) {
       try {
         const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-        await fetch(`${API_URL}/api/players/${userId}/unlock-book`, {
+        const response = await fetch(`${API_URL}/api/players/${userId}/unlock-book`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ bookId: normalizedId })
         });
+
+        if (!response.ok) {
+          throw new Error(`Unlock persistence failed: HTTP ${response.status}`);
+        }
         console.log(`✅ Backend Sync: Book ${normalizedId} saved to database for user ${userId}`);
       } catch (error) {
         console.error('❌ Backend sync failed', error);
+        return false;
       }
     }
 
@@ -181,14 +208,6 @@ export const UserProvider = ({ children }) => {
 
         console.log(`🔓 BOOK UNLOCKED: ${normalizedId} | Total: ${updatedBooks.length}`);
         
-        // ⚡ CRITICAL: Immediate persistence (don't wait for useEffect)
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
-          console.log('💾 Unlock persisted immediately to localStorage');
-        } catch (error) {
-          console.error('❌ Failed to persist unlock:', error);
-        }
-
         resolve(true);
         return newState;
       });
@@ -284,7 +303,8 @@ export const UserProvider = ({ children }) => {
     resetProgress,     // Clear progress but keep name
     clearAllData,      // Full reset to default
     logout,            // Logout and reload
-    reloadApp          // Force page reload
+    reloadApp,         // Force page reload
+    refreshUser,
   };
 
   return (

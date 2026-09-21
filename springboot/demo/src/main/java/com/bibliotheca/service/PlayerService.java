@@ -286,4 +286,39 @@ public class PlayerService {
         
         return player.getUnlockedBooks();
     }
+
+    @Transactional
+    public java.util.Map<String, Object> recordGameResult(
+            Long userId, Integer kpAmount, Long bookId, String gameId, boolean unlockBook) {
+        Player player = playerRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Player not found with ID: " + userId));
+
+        int currentKp = player.getKnowledgePoints();
+        int newKp = Math.max(0, currentKp + kpAmount);
+        player.setKnowledgePoints(newKp);
+
+        if (newKp == 0) {
+            player.setLastRegenerationTime(LocalDateTime.now());
+        }
+
+        if (gameId != null && !gameId.isBlank()) {
+            player.addCompletedGame(gameId + (bookId == null ? "" : "-" + bookId));
+        }
+
+        boolean firstTimeUnlock = false;
+        if (unlockBook && bookId != null && !player.getUnlockedBooks().contains(bookId)) {
+            player.addUnlockedBook(bookId);
+            firstTimeUnlock = true;
+        }
+
+        Player savedPlayer = playerRepository.save(player);
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("knowledgePoints", savedPlayer.getKnowledgePoints());
+        response.put("unlockedBooks", savedPlayer.getUnlockedBooks());
+        response.put("completedGames", savedPlayer.getCompletedGames());
+        response.put("firstTimeUnlock", firstTimeUnlock);
+        response.put("isLocked", savedPlayer.getKnowledgePoints() == 0);
+        response.put("lockoutSeconds", getRemainingLockoutTime(savedPlayer));
+        return response;
+    }
 }

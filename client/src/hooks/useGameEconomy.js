@@ -306,6 +306,42 @@ const useGameEconomy = (userId, initialKP = 100) => {
     }
   }, [userId, startLockoutTimer]);
 
+  const recordProgress = useCallback(async (bookId, kpAmount, gameId, unlockBook) => {
+    if (!userId) {
+      setError('User ID is required');
+      return null;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/${userId}/progress`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bookId, kpAmount, gameId, unlockBook })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to save progress: HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      setKp(data.knowledgePoints);
+
+      if (data.isLocked && data.knowledgePoints === 0) {
+        startLockoutTimer();
+      }
+
+      return data;
+    } catch (err) {
+      setError(err.message);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId, startLockoutTimer]);
+
   /**
    * Fetch current player status from backend
    * FIXED: Removed from useCallback to break circular dependency
@@ -374,6 +410,7 @@ const useGameEconomy = (userId, initialKP = 100) => {
     handleWin,
     handleLoss,
     completeLevel, // 📚 NEW: Complete level with book unlock tracking
+    recordProgress,
     updateKP,
     refreshKP,
     restoreEnergy,

@@ -37,6 +37,11 @@ public class Player {
     @CollectionTable(name = "player_unlocked_books", joinColumns = @JoinColumn(name = "player_id"))
     @Column(name = "book_id")
     private Set<Long> unlockedBooks = new HashSet<>();
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "player_completed_games", joinColumns = @JoinColumn(name = "player_id"))
+    @Column(name = "game_key")
+    private Set<String> completedGames = new HashSet<>();
     
     public Player() {}
     
@@ -106,6 +111,14 @@ public class Player {
     
     public void addUnlockedBook(Long bookId) {
         this.unlockedBooks.add(bookId);
+    }
+
+    public Set<String> getCompletedGames() {
+        return completedGames;
+    }
+
+    public void addCompletedGame(String gameKey) {
+        this.completedGames.add(gameKey);
     }
     
     public void addKnowledgePoints(Integer points) {

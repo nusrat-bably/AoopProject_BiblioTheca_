@@ -38,7 +38,7 @@ function DungeonPlatform({ onWin, unlockedBooks }) {
   const { playWin } = useUiSound();
 
   // 🔥 CONNECT TO USER CONTEXT
-  const { user, updateKP: updateUserKP, unlockBook } = useUser();
+  const { user, updateUser } = useUser();
 
   const {
     kp,
@@ -47,7 +47,7 @@ function DungeonPlatform({ onWin, unlockedBooks }) {
     lockoutProgress,
     canPlay,
     isLoading,
-    updateKP
+    recordProgress
   } = useGameEconomyContext();
 
   // 🎯 CRITICAL: Find target book with proper type conversion
@@ -168,15 +168,23 @@ function DungeonPlatform({ onWin, unlockedBooks }) {
       playWin();
       
       // 💰 UPDATE KP IN BOTH CONTEXTS
-      await updateKP(kpAmount); // Game economy
-      updateUserKP(kpAmount);   // User context (persisted)
+      const shouldUnlock = isCorrectGame && !isAlreadyUnlocked;
+      const progress = await recordProgress(parseInt(bookId), kpAmount, gameId, shouldUnlock);
+
+      if (!progress) {
+        addToast('error', 'SAVE FAILED', 'Your progress could not be saved. Please retry.', kpAmount);
+        return;
+      }
+
+      updateUser({
+        kp: progress.knowledgePoints,
+        unlockedBooks: progress.unlockedBooks || [],
+        completedGames: progress.completedGames || []
+      });
 
       // ✅ FIRST-TIME WIN LOGIC: Only if correct game AND not already unlocked
-      if (isCorrectGame && !isAlreadyUnlocked) {
+      if (shouldUnlock) {
         console.log(`🎉 FIRST-TIME UNLOCK! Correct game '${gameId}' completed for book '${targetBook.title}'`);
-        
-        // 🔓 UNLOCK BOOK IN USER CONTEXT (PERSISTED)
-        await unlockBook(parseInt(bookId));
         
         // 🎊 SHOW SUCCESS MODAL
         addToast('success', '🎉 SYSTEM RESTORED!', `${targetBook.title} has been unlocked!`, kpAmount);
@@ -218,8 +226,15 @@ function DungeonPlatform({ onWin, unlockedBooks }) {
       setTimeout(() => setDamageFlash(false), 500);
       
       // 💸 DEDUCT KP IN BOTH CONTEXTS
-      await updateKP(kpAmount); // Game economy
-      updateUserKP(kpAmount);   // User context (persisted, with 0 floor)
+      const progress = await recordProgress(parseInt(bookId), kpAmount, gameId, false);
+
+      if (progress) {
+        updateUser({
+          kp: progress.knowledgePoints,
+          unlockedBooks: progress.unlockedBooks || [],
+          completedGames: progress.completedGames || []
+        });
+      }
       
       addToast('error', 'SYSTEM DAMAGE!', `Protocol failed`, kpAmount);
       console.log(`❌ Game lost! Deducted ${Math.abs(kpAmount)} KP`);

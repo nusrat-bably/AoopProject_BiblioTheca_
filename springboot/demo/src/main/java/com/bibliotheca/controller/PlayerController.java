@@ -1,6 +1,7 @@
 package com.bibliotheca.controller;
 
 import com.bibliotheca.model.Player;
+import com.bibliotheca.repository.BookRepository;
 import com.bibliotheca.repository.PlayerRepository;
 import com.bibliotheca.service.PlayerService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +36,27 @@ public class PlayerController {
     @Autowired
     private PlayerService playerService;
 
+        @Autowired
+        private BookRepository bookRepository;
+
+        private void addSystemStatus(Map<String, Object> response, Player player) {
+        int totalBooks = (int) bookRepository.count();
+        int restoredCount = (int) bookRepository.findAll().stream()
+            .filter(book -> player.getUnlockedBooks().contains(book.getId()))
+            .count();
+        int corruptionPercentage = totalBooks == 0
+            ? 0
+            : Math.round(((totalBooks - restoredCount) * 100.0f) / totalBooks);
+
+        response.put("systemStatus", Map.of(
+            "isStable", restoredCount == totalBooks,
+            "status", restoredCount == totalBooks ? "STABLE" : "UNSTABLE",
+            "restoredCount", restoredCount,
+            "totalCorrupted", totalBooks,
+            "corruptionPercentage", corruptionPercentage
+        ));
+        }
+
     // Register a new player
     @PostMapping("/register")
     public ResponseEntity<?> registerPlayer(@RequestBody Map<String, String> credentials) {
@@ -57,6 +79,8 @@ public class PlayerController {
         response.put("email", player.getEmail());
         response.put("knowledgePoints", player.getKnowledgePoints());
         response.put("unlockedBooks", player.getUnlockedBooks());
+        response.put("completedGames", player.getCompletedGames());
+        addSystemStatus(response, player);
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -86,6 +110,8 @@ public class PlayerController {
         response.put("email", player.getEmail());
         response.put("knowledgePoints", player.getKnowledgePoints());
         response.put("unlockedBooks", player.getUnlockedBooks());
+        response.put("completedGames", player.getCompletedGames());
+        addSystemStatus(response, player);
 
         return ResponseEntity.ok(response);
     }
@@ -107,6 +133,8 @@ public class PlayerController {
         response.put("email", player.getEmail());
         response.put("knowledgePoints", player.getKnowledgePoints());
         response.put("unlockedBooks", player.getUnlockedBooks());
+        response.put("completedGames", player.getCompletedGames());
+        addSystemStatus(response, player);
 
         return ResponseEntity.ok(response);
     }
@@ -163,26 +191,21 @@ public class PlayerController {
         Player player = playerOpt.get();
         Long bookId = request.get("bookId");
         
-        if (!playerService.canPlay(id)) {
-            long cooldown = playerService.getRemainingLockoutTime(player);
-            return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(Map.of(
-                        "error", "Insufficient Knowledge Points",
-                        "message", "You need at least 50 KP to enter the dungeon",
-                        "currentKP", player.getKnowledgePoints(),
-                        "cooldownSeconds", cooldown
-                    ));
+        if (bookId == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "bookId is required"));
         }
-        
+
+        // Persist the unlock independently. The game completion endpoint owns KP
+        // changes, so this endpoint is safe to retry and cannot award duplicate XP.
         player.addUnlockedBook(bookId);
-        player = playerService.handleWin(id);
+        player = playerRepository.save(player);
 
         Map<String, Object> response = new HashMap<>();
         response.put("id", player.getId());
         response.put("username", player.getUsername());
         response.put("knowledgePoints", player.getKnowledgePoints());
         response.put("unlockedBooks", player.getUnlockedBooks());
-        response.put("message", "Book unlocked successfully! +50 KP");
+        response.put("message", "Book unlocked successfully");
 
         return ResponseEntity.ok(response);
     }
@@ -300,6 +323,19 @@ public class PlayerController {
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/progress")
+    public ResponseEntity<?> recordProgress(@PathVariable Long id, @RequestBody Map<String, Object> request) {
+        try {
+            Integer kpAmount = Integer.valueOf(request.get("kpAmount").toString());
+            Long bookId = request.get("bookId") == null ? null : Long.valueOf(request.get("bookId").toString());
+            String gameId = request.get("gameId") == null ? null : request.get("gameId").toString();
+            boolean unlockBook = Boolean.TRUE.equals(request.get("unlockBook"));
+            return ResponseEntity.ok(playerService.recordGameResult(id, kpAmount, bookId, gameId, unlockBook));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
     
