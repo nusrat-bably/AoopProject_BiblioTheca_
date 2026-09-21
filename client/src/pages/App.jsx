@@ -203,24 +203,28 @@ function AppContent() {
         try {
           const userData = JSON.parse(storedUser);
           const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-          const response = await fetch(`${API_URL}/api/players/${storedUserId}`);
-          if (!response.ok) throw new Error(`Player refresh failed: HTTP ${response.status}`);
-          const serverUser = await response.json();
 
+          // Keep the authenticated session visible while the server state refreshes.
+          // A temporary profile request failure must not log the user out.
           setIsLoggedIn(true);
-          setUser({ 
-            name: serverUser.username || userData.username,
+          setUser({
+            name: userData.username || '',
             id: parseInt(storedUserId)
           });
-          setUnlockedBooks(serverUser.unlockedBooks || []);
+
+          const response = await fetch(`${API_URL}/api/players/${storedUserId}`);
+          if (response.ok) {
+            const serverUser = await response.json();
+            setUser({
+              name: serverUser.username || userData.username || '',
+              id: parseInt(storedUserId)
+            });
+            setUnlockedBooks(serverUser.unlockedBooks || []);
+          } else {
+            console.warn(`Player refresh returned HTTP ${response.status}; keeping session active.`);
+          }
         } catch (error) {
-          localStorage.removeItem('userToken');
-          localStorage.removeItem('userId');
-          sessionStorage.removeItem('userToken');
-          sessionStorage.removeItem('userId');
-          setIsLoggedIn(false);
-          setUser({ name: '', id: null });
-          setUnlockedBooks([]);
+          console.warn('Player refresh failed; keeping the authenticated session active.', error);
         }
       } else {
         setIsLoggedIn(false);

@@ -280,7 +280,21 @@ function DungeonPlatform({ onWin, unlockedBooks }) {
       <DungeonGame 
         bookId={parseInt(bookId)}
         onClose={handleGameClose}
-        onComplete={(kpAmount) => handleGameComplete(kpAmount, 'glitch-purge')}
+        onWin={(_, result) => {
+          updateUser({
+            kp: result.knowledgePoints,
+            unlockedBooks: result.unlockedBooks || [],
+            completedGames: result.completedGames || []
+          });
+          addToast('success', 'SYSTEM RESTORED!', `${targetBook.title} has been unlocked!`, 50);
+          setTimeout(() => navigate(`/book/${bookId}`, {
+            state: { purgeSuccess: true },
+            replace: false
+          }), 1500);
+        }}
+        onLoss={() => {
+          addToast('error', 'SYSTEM DAMAGE!', 'Protocol failed', -50);
+        }}
       />
     );
   }

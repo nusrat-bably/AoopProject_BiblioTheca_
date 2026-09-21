@@ -10,7 +10,7 @@ function DungeonGame({ onWin, onLoss, onClose, bookId }) {
     isLocked,
     timer,
     lockoutProgress,
-    completeLevel, // 📚 NEW: Use completeLevel instead of handleWin/handleLoss
+    recordProgress,
     isLoading,
     error
   } = useGameEconomyContext();
@@ -120,9 +120,10 @@ function DungeonGame({ onWin, onLoss, onClose, bookId }) {
       if (gameState === 'won') {
         console.log('🎯 Auto-processing win reward: +50 KP (FIRST TIME ONLY)');
         try {
-          const result = await completeLevel(bookId, true);
+          const result = await recordProgress(bookId, 50, 'glitch-purge', true);
           if (result) {
             console.log('✅ Win processed:', result);
+            onWin?.(bookId, result);
           }
         } catch (err) {
           console.error('Error processing win:', err);
@@ -133,9 +134,10 @@ function DungeonGame({ onWin, onLoss, onClose, bookId }) {
       } else if (gameState === 'lost') {
         console.log('💀 Auto-processing loss penalty: -50 KP (FIRST TIME ONLY)');
         try {
-          const result = await completeLevel(bookId, false);
+          const result = await recordProgress(bookId, -50, 'glitch-purge', false);
           if (result) {
             console.log('✅ Loss processed:', result);
+            onLoss?.(bookId, result);
           }
         } catch (err) {
           console.error('Error processing loss:', err);
@@ -147,7 +149,7 @@ function DungeonGame({ onWin, onLoss, onClose, bookId }) {
     };
 
     processGameEnd();
-  }, [gameState, bookId, completeLevel, rewardProcessed, isLoading]);
+  }, [gameState, bookId, recordProgress, rewardProcessed, isLoading, onWin, onLoss]);
 
   // Move glitch to random position
   const moveGlitch = () => {
